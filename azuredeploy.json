@@ -83,12 +83,12 @@
                         "properties": {
                             "image": "[variables('image')]",
                             "command": [
-                                "./root/run.sh"
+                                "/mnt/github/run.sh"
                             ],
                             "volumeMounts": [
                                 {
                                     "name": "git",
-                                    "mountPath": "/root"
+                                    "mountPath": "/mnt/github"
                                 }
                             ],
                             "environmentVariables": [
@@ -116,7 +116,8 @@
                     {
                         "name": "git",
                         "gitRepo": {
-                          "repository": "https://github.com/sjkp/azure-arm-static-webpage"
+                           "directory": ".",
+                          "repository": "https://github.com/sjkp/azure-arm-static-webpage.git"
                         }
                       }
                 ]
@@ -125,7 +126,7 @@
     ],
     "outputs": {
         "WebUri": {
-            "value": "[reference(concat('Microsoft.Storage/storageAccounts/', parameters('storageAccountName')), '2016-01-01').primaryEndpoints.web]",
+            "value": "[reference(concat('Microsoft.Storage/storageAccounts/', parameters('storageAccountName')), '2018-07-01').primaryEndpoints.web]",
             "type": "string"
         }
     }
