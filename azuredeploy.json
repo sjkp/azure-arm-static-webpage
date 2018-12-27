@@ -21,12 +21,6 @@
                 "description": "Storage Account Name"
             }
         },
-        "fileShareName": {
-            "type": "string",
-            "metadata": {
-                "description": "File Share Name"
-            }
-        },
         "containerInstanceLocation": {
             "type": "string",
             "defaultValue": "[parameters('location')]",
@@ -53,8 +47,8 @@
         "image": "microsoft/azure-cli",
         "cpuCores": "1.0",
         "memoryInGb": "1.5",
-        "containerGroupName": "createshare-containerinstance",
-        "containerName": "createshare"
+        "containerGroupName": "createweb-containerinstance",
+        "containerName": "createweb"
     },
     "resources": [
         {
@@ -91,8 +85,8 @@
                                     "mountPath": "/mnt/github"
                                 },
                                 {
-                                    "name": "git",
-                                    "mountPath": "/mnt/content/dist"
+                                    "name": "content",
+                                    "mountPath": "/mnt/content"
                                 }
                             ],
                             "environmentVariables": [
