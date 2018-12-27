@@ -84,7 +84,7 @@
                         "properties": {
                             "image": "[variables('image')]",
                             "command": [
-                                "[if(greater(length(parameters('contentZipUri')),0), '/mnt/github/run.sh', '/mnt/github/runzip.sh')]"
+                                "[if(greater(length(parameters('contentZipUri')),0), '/mnt/github/runzip.sh','/mnt/github/run.sh')]"
                             ],
                             "volumeMounts": [
                                 {
