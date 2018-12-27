@@ -89,6 +89,10 @@
                                 {
                                     "name": "git",
                                     "mountPath": "/mnt/github"
+                                },
+                                {
+                                    "name": "git",
+                                    "mountPath": "/mnt/content/dist"
                                 }
                             ],
                             "environmentVariables": [
@@ -112,14 +116,21 @@
                 ],
                 "restartPolicy": "Never",
                 "osType": "Linux",
-                "volumes":[
+                "volumes": [
                     {
                         "name": "git",
                         "gitRepo": {
-                           "directory": ".",
-                          "repository": "https://github.com/sjkp/azure-arm-static-webpage.git"
+                            "directory": ".",
+                            "repository": "https://github.com/sjkp/azure-arm-static-webpage.git"
                         }
-                      }
+                    },
+                    {
+                        "name": "content",
+                        "gitRepo": {
+                            "directory": ".",
+                            "repository": "https://github.com/sjkp/azure-arm-static-webpage.git"
+                        }
+                    }
                 ]
             }
         }
