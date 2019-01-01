@@ -22,21 +22,54 @@
             "metadata": {
                 "description": "Location for all resources."
             }
+        },
+        "customDomain": {
+            "type": "string",
+            "metadata": {
+                "description": "Domain name to be assign to blob storage"
+            }
+        },
+        "cfApiEmail": {
+            "type": "string"
+        },
+        "cfApiDomain": {
+            "type": "string"
+        },
+        "cfApiKey": {
+            "type": "securestring"
+        },
+        "storageAccountName": {
+            "type":"string"
+        },
+        "storageAccountUri": {
+            "type":"string"
+        },
+        "roleName":{
+            "type": "string",
+            "metadata": {
+                "description": "Unique name for the role assignment. e.g. a guid"
+            }
         }
     },
     "variables": {
-        "image": "microsoft/azure-cli",
+        "imageAzCli": "sjkp/armclient-go",
+        "imageCfCli": "waracle/cloudflare",
         "cpuCores": "1.0",
         "memoryInGb": "1.5",
         "containerGroupName": "setupdns-containerinstance",
-        "containerName": "setupdns"
+        "containerName": "setupdns",
+        "azcontainerGroupName": "assigndns-containerinstance",
+        "azcontainerName": "assigndns",
+        "fqCustomDomain": "[concat(parameters('customDomain'), '.', parameters('cfApiDomain'))]",
+        "Contributor": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]",
+        "armPatchBody": "[concat('{\\\"properties\\\":{\\\"customDomain\\\":{\\\"name\\\":\\\"', variables('fqCustomDomain'),'\\\",\\\"useSubDomainName\\\":true}}}')]"
     },
-    "resources": [        
+    "resources": [     
         {
             "name": "[variables('containerGroupName')]",
             "type": "Microsoft.ContainerInstance/containerGroups",
-            "apiVersion": "2018-02-01-preview",
-            "location": "[parameters('containerInstanceLocation')]",
+            "apiVersion": "2018-10-01",
+            "location": "[parameters('containerInstanceLocation')]",            
             "dependsOn": [
             ],
             "properties": {
@@ -44,28 +77,66 @@
                     {
                         "name": "[variables('containerName')]",
                         "properties": {
-                            "image": "[variables('image')]",
+                            "image": "[variables('imageCfCli')]",
                             "command": [
-                                "/mnt/github/run.sh"
-                            ],
-                            "volumeMounts": [
-                                {
-                                    "name": "git",
-                                    "mountPath": "/mnt/github"
-                                },
-                                {
-                                    "name": "content",
-                                    "mountPath": "/mnt/content"
-                                }
-                            ],
+                                "cfcli",  
+                                "-a",                              
+                                "--ttl", 
+                                "120", 
+                                "-t",
+                                "CNAME",
+                                "add", 
+                                "[parameters('customDomain')]",
+                                "[parameters('storageAccountUri')]"
+                            ],                            
                             "environmentVariables": [
                                 {
-                                    "name": "AZURE_STORAGE_KEY",
-                                    "value": "[listKeys(parameters('storageAccountName'),'2017-10-01').keys[0].value]"
+                                    "name": "CF_API_KEY",
+                                    "value": "[parameters('cfApiKey')]"
                                 },
                                 {
-                                    "name": "AZURE_STORAGE_ACCOUNT",
-                                    "value": "[parameters('storageAccountName')]"
+                                    "name": "CF_API_EMAIL",
+                                    "value": "[parameters('cfApiEmail')]"
+                                },
+                                {
+                                    "name": "CF_API_DOMAIN",
+                                    "value": "[parameters('cfApiDomain')]"
+                                }
+                            ],
+                            "resources": {
+                                "requests": {
+                                    "cpu": "[variables('cpuCores')]",
+                                    "memoryInGb": "[variables('memoryInGb')]"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "name": "[concat(variables('containerName'),'2')]",
+                        "properties": {
+                            "image": "[variables('imageCfCli')]",
+                            "command": [
+                                "cfcli",                                
+                                "--ttl", 
+                                "120", 
+                                "-t",
+                                "CNAME",
+                                "add", 
+                                "[concat('asverify.', parameters('customDomain'))]",
+                                "[concat('asverify.', parameters('storageAccountUri'))]"
+                            ],                            
+                            "environmentVariables": [
+                                {
+                                    "name": "CF_API_KEY",
+                                    "value": "[parameters('cfApiKey')]"
+                                },
+                                {
+                                    "name": "CF_API_EMAIL",
+                                    "value": "[parameters('cfApiEmail')]"
+                                },
+                                {
+                                    "name": "CF_API_DOMAIN",
+                                    "value": "[parameters('cfApiDomain')]"
                                 }
                             ],
                             "resources": {
@@ -79,29 +150,79 @@
                 ],
                 "restartPolicy": "Never",
                 "osType": "Linux",
-                "volumes": [
-                    {
-                        "name": "git",
-                        "gitRepo": {
-                            "directory": ".",
-                            "repository": "https://github.com/sjkp/azure-arm-static-webpage.git"
-                        }
-                    },
-                    {
-                        "name": "content",
-                        "gitRepo": {
-                            "directory": ".",
-                            "repository": "https://github.com/sjkp/azure-arm-static-webpage.git"
-                        }
-                    }
+                "volumes": [                    
                 ]
             }
-        }
+        },   
+        {
+            "name": "[variables('azcontainerGroupName')]",
+            "type": "Microsoft.ContainerInstance/containerGroups",
+            "apiVersion": "2018-10-01",
+            "location": "[parameters('containerInstanceLocation')]",
+            "identity": {
+                "type": "SystemAssigned"                
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.ContainerInstance/containerGroups/', variables('containerGroupName'))]"
+            ],
+            "properties": {
+                "containers": [
+                    {
+                        "name": "[variables('azcontainerName')]",
+                        "properties": {
+                            "image": "[variables('imageAzCli')]",
+                            "command": [
+                                "sh",
+                                "-c",
+                                "[concat('sleep 120s && ./armclient patch ', resourceId('Microsoft.Storage/storageAccounts/', parameters('storageAccountName')),'?api-version=2018-07-01 ', variables('armPatchBody'))]"               
+                            ],                            
+                            "environmentVariables": [
+                                {
+                                    "name": "AZURE_STORAGE_KEY",
+                                    "value": "[listKeys(resourceId('Microsoft.Storage/storageAccounts/', parameters('storageAccountName')),'2017-10-01').keys[0].value]"
+                                },
+                                {
+                                    "name": "AZURE_STORAGE_ACCOUNT",
+                                    "value": "[parameters('storageAccountName')]"
+                                },
+                                {
+                                    "name": "MSI_ENDPOINT",
+                                    "value": "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01"
+                                }
+                            ],
+                            "resources": {
+                                "requests": {
+                                    "cpu": "[variables('cpuCores')]",
+                                    "memoryInGb": "[variables('memoryInGb')]"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "restartPolicy": "Never",
+                "osType": "Linux",
+                "volumes": [                    
+                ]
+            }
+        },
+        {
+            "condition": "[bool('true')]",
+            "type": "Microsoft.Authorization/roleAssignments",
+            "apiVersion": "2017-05-01",
+            "name": "[parameters('roleName')]",
+            "dependsOn": [               
+            ],
+            "properties": {
+              "roleDefinitionId": "[variables('Contributor')]",
+              "principalId": "[reference(concat('Microsoft.ContainerInstance/containerGroups/', variables('azcontainerGroupName'), '/providers/Microsoft.ManagedIdentity/Identities/default'), '2015-08-31-PREVIEW').principalId]",
+              "scope": "[resourceGroup().id]"
+            }
+          }        
     ],
-    "outputs": {
-        "WebUri": {
-            "value": "[reference(concat('Microsoft.Storage/storageAccounts/', parameters('storageAccountName')), '2018-07-01').primaryEndpoints.web]",
-            "type": "string"
+    "outputs": {        
+        "principal": {
+            "type": "object",
+            "value": "[reference(concat('Microsoft.ContainerInstance/containerGroups/', variables('azcontainerGroupName'), '/providers/Microsoft.ManagedIdentity/Identities/default'), '2015-08-31-PREVIEW')]"
         }
     }
 }
