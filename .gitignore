@@ -1,2 +1,4 @@
 .azure/
 .bash_history
+cloudflaredns.parameters.local.json
+azuredeploy-full.parameters.local.json

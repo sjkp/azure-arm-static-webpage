@@ -48,6 +48,13 @@
             "metadata": {
                 "description": "Uri to a zip file containing a static web page that should be extracted and uploaded to azure static web"
             }
+        },
+        "gitHtmlContentUri": {
+            "type": "string",
+            "defaultValue": "https://github.com/sjkp/azure-arm-static-webpage.git",
+            "metadata": {
+                "description": "Uri to a github project that contains a dist folder with and index.html and other content that should be deployed"
+            }
         }
     },
     "variables": {
@@ -133,7 +140,7 @@
                         "name": "content",
                         "gitRepo": {
                             "directory": ".",
-                            "repository": "https://github.com/sjkp/azure-arm-static-webpage.git"
+                            "repository": "[parameters('gitHtmlContentUri')]"
                         }
                     }
                 ]
